@@ -66,6 +66,35 @@ end_piece(A,X,O) :- amount(A,D,'x'), amount(A,F,'o'), D+X>2, F+O>2, write('conti
 end_piece(A,X,_) :- amount(A,D,'x'), D+X<3, write('o wins').
 end_piece(A,_,O) :- amount(A,F,'o'), F+O<3, write('x wins').
 
+end_3row([],_) :- write('continue').
+end_3row(['o'|T],X) :- X < 2, what_piece(T,0,'o'), what_piece(T,1,'o'), write('o wins').
+end_3row(['o'|T],X) :- X < 2, what_piece(T,3,'o'), what_piece(T,7,'o'), write('o wins').
+end_3row(['o'|T],X) :- X < 2, what_piece(T,4,'o'), what_piece(T,9,'o'), write('o wins').
+end_3row(['x'|T],X) :- X < 2, what_piece(T,0,'x'), what_piece(T,1,'x'), write('x wins').
+end_3row(['x'|T],X) :- X < 2, what_piece(T,3,'x'), what_piece(T,7,'x'), write('x wins').
+end_3row(['x'|T],X) :- X < 2, what_piece(T,4,'x'), what_piece(T,9,'x'), write('x wins').
+end_3row([_|T],3) :- F is 0, end_3row(T,F).
+end_3row([_|T],X) :- X < 3, F is X+1, end_3row(T,F).
+
+what_piece([H|_],0,H).
+what_piece([_|T],X,D) :- X > 0, F is X-1, what_piece(T,F,D).
+
+eat_possible_check([],_,_) :- write('nothing to eat').
+eat_possible_check([H|T],H,X) :- X < 2, H=='o', what_piece(T,0,'x'), what_piece(T,1,' '), write('o can eat').
+eat_possible_check([H|T],H,X) :- X < 2, H=='o', what_piece(T,3,'x'), what_piece(T,7,' '), write('o can eat').
+eat_possible_check([H|T],H,X) :- X < 2, H=='o', what_piece(T,4,'x'), what_piece(T,9,' '), write('o can eat').
+eat_possible_check([H|T],H,X) :- X < 2, H=='x', what_piece(T,0,'o'), what_piece(T,1,' '), write('x can eat').
+eat_possible_check([H|T],H,X) :- X < 2, H=='x', what_piece(T,3,'o'), what_piece(T,7,' '), write('x can eat').
+eat_possible_check([H|T],H,X) :- X < 2, H=='x', what_piece(T,4,'o'), what_piece(T,9,' '), write('x can eat').
+eat_possible_check([_|T],H,3) :- F is 0, eat_possible_check(T,H,F).
+eat_possible_check([_|T],H,X) :- X < 3, F is X+1, eat_possible_check(T,H,F).
+
+reverse(List1,List2):- reverse_aux(List1,[],List2).
+reverse_aux([X|XS],R,A):- reverse_aux(XS,[X|R],A).
+reverse_aux([],A,A).
+
+eat_possible(A,X) :- eat_possible_check(A,X,0), nl, reverse(A,B), eat_possible_check(B,X,0).
+
 
 
 
