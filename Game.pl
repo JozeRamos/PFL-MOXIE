@@ -51,12 +51,20 @@ remove_piece([H|T],X,[H|A]) :- X > 0, F is X-1, remove_piece(T,F,A).
 move(A,P,X,Y,B) :- remove_piece(A,X,D), piece(D,P,Y,B).
 
 
-eat(A,P,X,Y,B) :- X > Y, X-Y < 3, R is Y + 1, eat1(A,Y,D,R,E,P,X,B).
-eat(A,P,X,Y,B) :- X < Y, Y-X < 3, R is Y - 1, eat1(A,Y,D,R,E,P,X,B).
-eat(A,P,X,Y,B) :- X > Y, X-Y > 3, R is Y + 4, eat1(A,Y,D,R,E,P,X,B).
-eat(A,P,X,Y,B) :- X < Y, Y-X > 3, R is Y - 4, eat1(A,Y,D,R,E,P,X,B).
+eat(A,P,X,Y,B) :- X > Y, X-Y < 3, R is Y + 1, eat1(A,Y,R,P,X,B).
+eat(A,P,X,Y,B) :- X < Y, Y-X < 3, R is Y - 1, eat1(A,Y,R,P,X,B).
+eat(A,P,X,Y,B) :- X > Y, X-Y > 3, R is Y + 4, eat1(A,Y,R,P,X,B).
+eat(A,P,X,Y,B) :- X < Y, Y-X > 3, R is Y - 4, eat1(A,Y,R,P,X,B).
 
-eat1(A,Y,D,R,E,P,X,B) :- remove_piece(A,Y,D), remove_piece(D,R,E), piece(E,P,X,B), arena(B,1,1).
+eat1(A,Y,R,P,X,B) :- remove_piece(A,Y,D), remove_piece(D,R,E), piece(E,P,X,B), arena(B,1,1).
+
+amount([],0,_).
+amount([H|T],D,H) :- amount(T,F,H), D is F+1.
+amount([H|T],D,X) :- X\=H, amount(T,D,X).
+
+end_piece(A,X,O) :- amount(A,D,'x'), amount(A,F,'o'), D+X>2, F+O>2, write('continue').
+end_piece(A,X,_) :- amount(A,D,'x'), D+X<3, write('o wins').
+end_piece(A,_,O) :- amount(A,F,'o'), F+O<3, write('x wins').
 
 
 
