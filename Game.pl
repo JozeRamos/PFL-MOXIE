@@ -9,7 +9,7 @@ game :- initial_state(16, GameState),
 		game_cycle(GameState).
 
 
-% game_cycle(GameState-Player):-	game_over(GameState, Winner), !,
+% game_cycle(GameState):-	game_over(GameState, Winner), !,
 %									congratulate(Winner).
 
 game_cycle(GameState):- game_turn(GameState, 'x', NewGameState),
@@ -59,10 +59,6 @@ choose_move(GameState, Player, human, Move) :- repeat, write(Player), write(' tu
 % choose_move(GameState, Player, 2, Move) :-
 
 % ----------------------- Menu e I/O ---------------------------
-
-len([],0).
-len([_ | T], N) :- len(T, S),
-				N is S+1.
 
 repeat_char(_, 0).
 repeat_char(C, 1) :- put_char(C).
@@ -162,8 +158,6 @@ calc_eat_move(X, Y, Z) :- (var(Z) ->
 						(X-Z =:= 8, Y is Z + 4);
 						(X-Z =:= 10, Y is Z + 5, (Y mod 4) =\= 0))).
 
-
-
 % -------------------------------------------------
 
 % -------------------- Check End ----------------------
@@ -187,24 +181,6 @@ end_3row([_|T],3) :- F is 0, end_3row(T,F).
 end_3row([_|T],X) :- X < 3, F is X+1, end_3row(T,F).
 
 % -----------------------------------------------------
-
-what_piece([H|_],0,H).
-what_piece([_|T], X, D) :- X > 0, F is X-1, what_piece(T,F,D).
-
-add_lists([], X, X).
-add_lists([X | Y], Z, [X | W]) :- add_lists(Y, Z, W).
-
-indexOf([Element|_], Element, 0).  % pode-se se trocar por nth0
-indexOf([_|Tail], Element, Index):-
-  indexOf(Tail, Element, Index1),
-  Index is Index1+1.
-
-% ite(I, T, _):- I, !, T.
-% ite(_, _, E):- E.
-
-
-% not(X):- X, !, fail.
-% not(_X).
 
 % ------------------- Valid Moves ------------------------------
 
@@ -256,5 +232,30 @@ valid_eats(A, Piece, Moves, X) :- X > 0,
 								add_lists(Move, Movs, Moves),
 								Xs is X-1,
 								valid_eats(A, Piece, Movs, Xs).
+
+% --------------------------------------------------------------
+
+% ------------------- Utils ------------------------------
+
+what_piece([H|_],0,H).
+what_piece([_|T], X, D) :- X > 0, F is X-1, what_piece(T,F,D).
+
+add_lists([], X, X).
+add_lists([X | Y], Z, [X | W]) :- add_lists(Y, Z, W).
+
+indexOf([Element|_], Element, 0).  % pode-se se trocar por nth0
+indexOf([_|Tail], Element, Index):-
+  indexOf(Tail, Element, Index1),
+  Index is Index1+1.
+
+len([],0).
+len([_ | T], N) :- len(T, S),
+				N is S+1.
+
+% ite(I, T, _):- I, !, T.
+% ite(_, _, E):- E.
+
+% not(X):- X, !, fail.
+% not(_X).
 
 % --------------------------------------------------------------
