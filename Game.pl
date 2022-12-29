@@ -5,20 +5,19 @@ play :- menu.
 % display_game(+GameState)
 display_game(GameState) :- arena(GameState, 8, 8).
 
-game :- initial_state(16, GameState),
-		game_cycle(GameState).
+% Player: human-humano 1-AI(random) 2-AI
 
+game(Type) :- initial_state(16, GameState),
+		game_cycle(GameState, Type).
 
-% game_cycle(GameState):-	game_over(GameState, Winner), !,
-%									congratulate(Winner).
-
-game_cycle(GameState):- game_turn(GameState, 'x', NewGameState),
-						game_turn(NewGameState, 'o', NewNewGameState),
-						game_cycle(NewNewGameState).
+% game_cycle(GameState):-	game_over(GameState, Winner), !, congratulate(Winner).
+game_cycle(GameState, F-S):- game_turn(GameState, F, 'x', NewGameState),
+							game_turn(NewGameState, S, 'o', NewNewGameState),
+							game_cycle(NewNewGameState, F-S).
 						
-game_turn(GameState, Player, NewGameState) :- display_game(GameState),
-						choose_move(GameState, Player, human, X_move),
-						make_move(GameState, X_move, Player, NewGameState).
+game_turn(GameState, Player, Piece, NewGameState) :- display_game(GameState),
+													choose_move(GameState, Player, Piece, Move),
+													make_move(GameState, Move, Piece, NewGameState).
 
 % initial_state(+Size, -GameState) Size is the number of places on the board. Cria uma board vazia com o size dado.
 initial_state(0, []).
@@ -27,15 +26,15 @@ initial_state(Size, [' '|T]) :- Size > 0,
 								initial_state(S, T).
 
 
-% move(+GameState, +Move, -NewGameState)
-make_move(GameState, Move, Player, NewGameState) :- integer(Move), piece(GameState, Player, Move, NewGameState).
-make_move(GameState, X-Y, Player, NewGameState) :- valid_move(GameState,Player,X,Y), move(GameState, X, Y, NewGameState).
+% move(+GameState, +Move, +Piece, -NewGameState)
+make_move(GameState, Move, Piece, NewGameState) :- integer(Move), piece(GameState, Piece, Move, NewGameState).
+make_move(GameState, X-Y, Piece, NewGameState) :- valid_move(GameState, Piece, X, Y), move(GameState, X, Y, NewGameState).
 make_move(GameState, X-Z, _, NewGameState) :- eat(GameState, X, Z, NewGameState).
 
-% valid_moves(+GameState, +Player, -ListOfMoves)
-valid_moves(GameState, Player, ListOfMoves) :- piece_option(GameState, Piece_moves),
-												move_option(GameState, Player, Move_moves),
-												eat_option(GameState, Player, Eat_moves),
+% valid_moves(+GameState, +Piece, -ListOfMoves)
+valid_moves(GameState, Piece, ListOfMoves) :- piece_option(GameState, Piece_moves),
+												move_option(GameState, Piece, Move_moves),
+												eat_option(GameState, Piece, Eat_moves),
 												add_lists(Piece_moves, Move_moves, L),
 												add_lists(L, Eat_moves, ListOfMoves).
 											   
@@ -46,14 +45,13 @@ valid_moves(GameState, Player, ListOfMoves) :- piece_option(GameState, Piece_mov
 % value(+GameState, +Player, -Value)
 
 
-
-% !!!!!!!!!!!!!!!!!!!!!!! Adicionar informação (tipo "Eat is required" e "Invalid Move") !!!!!!!!!!!!
-% choose_move(+GameState, +Player, +Level, -Move)
-choose_move(GameState, Player, human, Move) :- repeat, write(Player), write(' turn: '), read(Move),
-												valid_moves(GameState, Player, Valid_moves),
+% !!!!!!!!!!!!!!!!!!!!!!! Adicionar informação (tipo "Eat is requ5ired" quando o Eat é forçoso e "Invalid Move" quando o move não é valido) !!!!!!!!!!!!
+% choose_move(+GameState, +Piece, +Player, -Move)
+choose_move(GameState, human, Piece, Move) :- repeat, write(Piece), write(' turn: '), read(Move),
+												valid_moves(GameState, Piece, Valid_moves),
 												memberchk(Move, Valid_moves),
-												eat_option(GameState, Player, Eats),
-												(eat_option(GameState, Player, []); memberchk(Move, Eats)).
+												eat_option(GameState, Piece, Eats),
+												(eat_option(GameState, Piece, []); memberchk(Move, Eats)).
 
 % choose_move(GameState, Player, 1, Move) :-
 % choose_move(GameState, Player, 2, Move) :-
@@ -83,9 +81,7 @@ menu :- nl, print_text(" MOXIE!",' ', 4), nl,
 		repeat_char('X',17), nl, nl,
 		text("Your choice: "), read(N), menu_choice(N).
 
-
-
-menu_choice(1) :- game, nl. 
+menu_choice(1) :- play_menu, nl. 
 menu_choice(2) :- nl, print_text("Rules", '|', 5), nl,
 	write('MOVE - On each turn, each player must do one of the following actions:'),nl,
 	write('Drop a stone into an empty cell.'), nl,
@@ -96,8 +92,25 @@ menu_choice(2) :- nl, print_text("Rules", '|', 5), nl,
 	write('GOAL - Wins the player that makes an orthogonal or diagonal 3 in-a-row, or captures 6 enemy stones.'), nl, read(_), menu.
 menu_choice(0).
 menu_choice(_) :- nl, menu.
-								
 
+play_menu :- nl, print_text("Play Mode",' ', 10), nl,
+		repeat_char('X',31), nl,
+		print_menu_option("1 - Human/Human", 'X', 7),
+		print_menu_option("2 - Human/Computer (easy)", 'X', 2),
+		print_menu_option("3 - Human/Computer (hard)", 'X', 2),
+		print_menu_option("4 - Computer/Computer", 'X', 4),
+		% print_menu_option("5 - Computer/Computer", 'X', 3),
+		% print_menu_option("6 - Computer/Computer", 'X', 3),
+		% print_menu_option("7 - Computer/Computer", 'X', 3),
+		print_menu_option("0 - Back to menu ", 'X', 6),
+		repeat_char('X',31), nl, nl,
+		text("Your choice: "), read(N), play_choice(N).
+
+play_choice(1) :- game(human-human). 
+play_choice(2) :- game(human-1). 
+play_choice(3) :- game(human-2). 
+play_choice(0) :- nl, menu.
+play_choice(0) :- nl, menu.
 
 % ----------------------------------------------------------
 
