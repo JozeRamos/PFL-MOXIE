@@ -1,23 +1,36 @@
 ?- use_module(library(lists)).
+?- use_module(library(random)).
+
+
 
 play :- menu.
 
 % display_game(+GameState)
 display_game(GameState) :- arena(GameState, 8, 8).
 
-% Player: human-humano 1-AI(random) 2-AI
+% Player: human-human 1-AI(random) 2-AI
 
 game(Type) :- initial_state(16, GameState),
-		game_cycle(GameState, Type).
+			  game_cycle(GameState, Type).
 
-% game_cycle(GameState):-	game_over(GameState, Winner), !, congratulate(Winner).
 game_cycle(GameState, F-S):- game_turn(GameState, F, 'x', NewGameState),
-							game_turn(NewGameState, S, 'o', NewNewGameState),
-							game_cycle(NewNewGameState, F-S).
-						
+							 game_turn(NewGameState, S, 'o', NewNewGameState),
+							 game_cycle(NewNewGameState, F-S).
+
+% game_turn(GameState):-	game_over(GameState, Winner), !, congratulate(Winner).				
 game_turn(GameState, Player, Piece, NewGameState) :- display_game(GameState),
-													choose_move(GameState, Player, Piece, Move),
-													make_move(GameState, Move, Piece, NewGameState).
+													 choose_move(GameState, Player, Piece, Move),
+													 make_move(GameState, Move, Piece, N, Eat),
+													 ite(check_state(Piece, N, Eat), (NewGameState = N), (nl, write('Jump is Required!'), game_turn(N, Player, Piece, NewGameState))).
+													%  (make_move(GameState, Move, Piece, NewGameState, 0);
+													%    %(eat_option(Ngs,Piece,[]), NewGameState == Ngs));
+													%    (make_move(GameState, Move, Piece, Ngs, 1),eat_option(Ngs,Piece,[]), Ngs == NewGameState);
+													%    (make_move(GameState, Move, Piece, Ngs, 1),
+													%    (eat_option(Ngs, Piece, New_moves), New_moves \= [],
+													%    nl, write('Multiple Jump Is Required!'),
+													%    game_turn(Ngs, Player, Piece, NewGameState)))).
+check_state(_, _, 0).
+check_state(Piece, NewGameState, 1) :- eat_option(NewGameState,Piece,[]).
 
 % initial_state(+Size, -GameState) Size is the number of places on the board. Cria uma board vazia com o size dado.
 initial_state(0, []).
@@ -27,16 +40,22 @@ initial_state(Size, [' '|T]) :- Size > 0,
 
 
 % move(+GameState, +Move, +Piece, -NewGameState)
-make_move(GameState, Move, Piece, NewGameState) :- integer(Move), piece(GameState, Piece, Move, NewGameState).
-make_move(GameState, X-Y, Piece, NewGameState) :- valid_move(GameState, Piece, X, Y), move(GameState, X, Y, NewGameState).
-make_move(GameState, X-Z, _, NewGameState) :- eat(GameState, X, Z, NewGameState).
+make_move(GameState, Move, Piece, NewGameState, 0) :- integer(Move), piece(GameState, Piece, Move, NewGameState).
+make_move(GameState, X-Y, Piece, NewGameState, 0) :- valid_move(GameState, Piece, X, Y), move(GameState, X, Y, NewGameState).
+make_move(GameState, X-Z, _, NewGameState, 1) :- eat(GameState, X, Z, NewGameState).
 
 % valid_moves(+GameState, +Piece, -ListOfMoves)
-valid_moves(GameState, Piece, ListOfMoves) :- piece_option(GameState, Piece_moves),
+valid_moves(GameState, Piece, ListOfMoves) :- 	eat_option(GameState, Piece, ListOfMoves);
+												(eat_option(GameState, Piece, []),
+												piece_option(GameState, Piece_moves),
 												move_option(GameState, Piece, Move_moves),
-												eat_option(GameState, Piece, Eat_moves),
-												add_lists(Piece_moves, Move_moves, L),
-												add_lists(L, Eat_moves, ListOfMoves).
+												add_lists(Piece_moves, Move_moves, ListOfMoves)).
+
+ 											% piece_option(GameState, Piece_moves),
+											%   move_option(GameState, Piece, Move_moves),
+											%   eat_option(GameState, Piece, Eat_moves),
+											%   add_lists(Piece_moves, Move_moves, L),
+											%   add_lists(L, Eat_moves, ListOfMoves).
 											   
 
 % game_over(+GameState, -Winner)
@@ -44,16 +63,29 @@ valid_moves(GameState, Piece, ListOfMoves) :- piece_option(GameState, Piece_move
 
 % value(+GameState, +Player, -Value)
 
+% choose_move(GameState, human, Piece, Move) :- repeat, write(Piece), write(' turn: '), read(Move),
+% 												valid_moves(GameState, Piece, Valid_moves),
+% 												memberchk(Move, Valid_moves),
+% 												eat_option(GameState, Piece, Eats),
+% 												(eat_option(GameState, Piece, []); memberchk(Move, Eats)).
 
-% !!!!!!!!!!!!!!!!!!!!!!! Adicionar informação (tipo "Eat is requ5ired" quando o Eat é forçoso e "Invalid Move" quando o move não é valido) !!!!!!!!!!!!
+% choose_move(GameState, 1, Piece, Move) :-   valid_moves(GameState, Piece, Valid_moves),
+% 											memberchk(Move, Valid_moves),
+% 											eat_option(GameState, Piece, Eats),
+% 											(eat_option(GameState, Piece, []); memberchk(Move, Eats)),
+% 											random_member(Move, Valid_moves),
+
+% !!!!!!!!!!!!!!!!!!!!!!! Adicionar informação (tipo "Eat is required" quando o Eat é forçoso e "Invalid Move" quando o move não é valido) !!!!!!!!!!!!
 % choose_move(+GameState, +Piece, +Player, -Move)
 choose_move(GameState, human, Piece, Move) :- repeat, write(Piece), write(' turn: '), read(Move),
 												valid_moves(GameState, Piece, Valid_moves),
-												memberchk(Move, Valid_moves),
-												eat_option(GameState, Piece, Eats),
-												(eat_option(GameState, Piece, []); memberchk(Move, Eats)).
+												%(eat_option(GameState, Piece, L), L == Valid_moves, L \= []) -> write('Jump is Required'),
+												memberchk(Move, Valid_moves).
 
-% choose_move(GameState, Player, 1, Move) :-
+choose_move(GameState, 1, Piece, Move) :-   valid_moves(GameState, Piece, Valid_moves),
+											% memberchk(Move, Valid_moves),
+											random_member(Move, Valid_moves).
+
 % choose_move(GameState, Player, 2, Move) :-
 
 % ----------------------- Menu e I/O ---------------------------
@@ -110,7 +142,7 @@ play_choice(1) :- game(human-human).
 play_choice(2) :- game(human-1). 
 play_choice(3) :- game(human-2). 
 play_choice(0) :- nl, menu.
-play_choice(0) :- nl, menu.
+
 
 % ----------------------------------------------------------
 
@@ -154,22 +186,22 @@ eat(A, X, Z, B) :- calc_eat_move(X, Y, Z), % calculate food position
 % apenas para boards (4 * Y)
 calc_eat_move(X, Y, Z) :- (var(Z) ->
 						((Y-X =:= 1, Z is Y + 1, ((Y-3) mod 4) =\= 0);  % calcular Z se estiver em falta
-						(Y-X =:= 3, Z is Y + 3, (Y mod 4) =\= 0);
-						(Y-X =:= 4, Z is Y + 4);
-						(Y-X =:= 5, Z is Y + 5, ((Y-3) mod 4) =\= 0);
+						(Y-X =:= 3, Y<(4*4)-4, Z is Y + 3, (Y mod 4) =\= 0, (X mod 4) =\= 0);
+						(Y-X =:= 4, Y<(4*4)-4, Z is Y + 4);
+						(Y-X =:= 5, Y<(4*4)-4, Z is Y + 5, ((Y-3) mod 4) =\= 0);
 						(X-Y =:= 1, Z is Y - 1, (Y mod 4) =\= 0);
-						(X-Y =:= 3, Z is Y - 3, ((Y-3) mod 4) =\= 0);
-						(X-Y =:= 4, Z is Y - 4);
+						(X-Y =:= 3, Y>3, Z is Y - 3, ((Y) mod 4) =\= 0);
+						(X-Y =:= 4, Y>3, Z is Y - 4);
 						(X-Y =:= 5, Z is Y - 5, (Y mod 4) =\= 0)));
 						(var(Y) ->
 						((Z-X =:= 2, Y is Z - 1, ((Y-3) mod 4) =\= 0);  % calcular Y se estiver em falta
-						(Z-X =:= 6, Y is Z - 3, (Y mod 4) =\= 0);
-						(Z-X =:= 8, Y is Z - 4);
-						(Z-X =:= 10, Y is Z - 5, ((Y-3) mod 4) =\= 0);
+						(Z-X =:= 6, Y<(4*4)-4, Y is Z - 3, (Y mod 4) =\= 0, (X mod 4) =\= 0);
+						(Z-X =:= 8, Y<(4*4)-4, Y is Z - 4);
+						(Z-X =:= 10, Y<(4*4)-4, Y is Z - 5, ((Y-3) mod 4) =\= 0);
 						(X-Z =:= 2, Y is Z + 1, (Y mod 4) =\= 0);
-						(X-Z =:= 6, Y is Z + 3, ((Y-3) mod 4) =\= 0);
-						(X-Z =:= 8, Y is Z + 4);
-						(X-Z =:= 10, Y is Z + 5, (Y mod 4) =\= 0))).
+						(X-Z =:= 6, Y>3, Y is Z + 3, ((Y) mod 4) =\= 0);
+						(X-Z =:= 8, Y>3, Y is Z + 4);
+						(X-Z =:= 10,Y>3, Y is Z + 5, (Y mod 4) =\= 0))).
 
 % -------------------------------------------------
 
@@ -234,7 +266,7 @@ valid_eat(A,X,Piece,Z) :- 	(Y is X+1; Y is X-1; Y is X+3; Y is X-3; Y is X+4; Y 
 							what_piece(A, X, Piece),
 							what_piece(A, Y, C),
 							what_piece(A, Z, F),
-							%(Z is X+2; Z is X-2; Z is X+6; Z is X-6; Z is X+8; Z is X-8; Z is X+10; Z is X-10),
+							(Z is X+2; Z is X-2; Z is X+6; Z is X-6; Z is X+8; Z is X-8; Z is X+10; Z is X-10),
 							F == ' ',
 							((Piece == 'x', C == 'o'); (Piece == 'o', C == 'x')).
 
@@ -265,10 +297,10 @@ len([],0).
 len([_ | T], N) :- len(T, S),
 				N is S+1.
 
-% ite(I, T, _):- I, !, T.
-% ite(_, _, E):- E.
+ite(I, T, _):- I, !, T.
+ite(_, _, E):- E.
 
-% not(X):- X, !, fail.
-% not(_X).
+not(X):- X, !, fail.
+not(_X).
 
 % --------------------------------------------------------------
