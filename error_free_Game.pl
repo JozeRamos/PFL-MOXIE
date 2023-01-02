@@ -21,7 +21,8 @@ game_cycle(GameState, F-S, NewGameState) :- game_turn(GameState, F, [Narena,Npie
 											ite(game_over([Narena,Winner|T], Winner), (display_game([Narena,Winner|T]),congratulate(Winner)),
 											game_cycle([Narena,Npiece|T], S-F, NewGameState)).
 
-game_over([Arena, Winner|A], Winner) :- end([Arena, Winner|A], Winner).
+game_over([Arena, Winner|A], Winner) :- check_end([Arena,Winner|A], Winner,pieces) -> format('\n~s wins by 3 in row!\n', [Winner]);
+										check_end([Arena,Winner|A], Winner, row) -> format('\n~s wins by pieces!\n', [Winner]).
 
 game_turn([Arena, Winner|A], _, _):-	game_over([Arena,Winner|A], Winner), !, congratulate(Winner).				
 game_turn([Arena, Piece|V], Player, [Newarena, Newpiece|U]) :- display_game([Arena,Piece|V]),
@@ -71,7 +72,35 @@ choose_move([Arena,Piece|T], 1, Move) :-  valid_moves([Arena,Piece|T], Valid_mov
 										  write(Piece), write(' turn!'), nl,
 										  sleep(1).
 
-% choose_move(GameState, Player, 2, Move) :-
+choose_move([Arena,Piece|T], 2, Move) :- 	valid_moves([Arena,Piece|T], Valid_Moves),
+											get_pairs_value_move([Arena,Piece|T], Valid_Moves, Pairs),
+											write(Pairs),nl,
+											keysort(Pairs, Asc_order),
+											write(Asc_order),nl,
+											reverse(Asc_order, [K-M|P]),
+											same_key([K-M|P], K, Possible_Moves),
+											random_member(_-Move, Possible_Moves),
+											write(Move),nl,
+											write(Piece), write(' turn!'), nl,
+											sleep(1).
+
+% get_pairs_value_move(Moves,Pairs)
+get_pairs_value_move(_,[],[]).
+get_pairs_value_move(GameState, [M|Ms], [V-M|Ps]) :- make_move(GameState,M,NewGameState,_), findall(Val,value(NewGameState,2,Val),[V|_]),  get_pairs_value_move(GameState, Ms,Ps).
+
+%value(+GameState, +Player, -Value)
+% Avalia o estado do jogo tendo em conta a Piece a jogar (assume que não é comida)
+% 3 -> Ganhou o jogo
+% 2 -> Pode comer uma peça e não pode ser comida
+% 0 -> Pode ser comida e não pode comer
+% 2 -> Esta em linha com outra peça
+% 1 -> Não pode fazer nada / outro
+value([Arena,Piece, X,O], 2, Value) :- check_end([Arena,Piece, X,O], Piece,_) -> Value is 3;
+									(eat_option(Arena, Piece, ListOfMoves), ListOfMoves \= [],
+									 change_piece(Piece, OtherPiece), eat_option(Arena, OtherPiece, [])) -> Value is 2;
+									(eat_option(Arena, Piece, []), change_piece(Piece, OtherPiece),
+									 eat_option(Arena, OtherPiece, L), L \= []) -> Value is 0;
+									Value is 1.
 
 % ----------------------- Menu e I/O ---------------------------
 
@@ -132,7 +161,7 @@ play_menu :- nl, print_text("Play Mode",' ', 10), nl,
 play_choice(1) :- game(human-human). 
 play_choice(2) :- game(human-1). 
 play_choice(3) :- game(human-2). 
-play_choice(4) :- game(1-1). 
+play_choice(4) :- game(2-2). 
 play_choice(0) :- nl, menu.
 
 congratulate(Winner) :- repeat_char('X',24),nl,
@@ -199,45 +228,32 @@ calc_eat_move(X, Y, Z) :- (var(Z) ->
 						(X-Z =:= 8, Y is Z + 4, Y>3);
 						(X-Z =:= 10, Y is Z + 5, (Y mod 4) =\= 0, Y>3))).
 
-/* eat_piece(GameState, X, Y, NewGameState) :- eat_piece_aux(X, Y, Z), % calculate food position
-                    move(GameState, X, Y, D), remove_piece(D, Z, NewGameState).
-
-% Z is food | Y is end pos
-eat_piece_aux(X, Y, Z) :- X > Y, F is X - Y, F == 2, Z is X - 1.
-eat_piece_aux(X, Y, Z) :- X < Y, F is Y - X, F == 2, Z is X + 1.
-eat_piece_aux(X, Y, Z) :- X > Y, F is X - Y, F == 6, Z is X - 3.
-eat_piece_aux(X, Y, Z) :- X < Y, F is Y - X, F == 6, Z is X + 3.
-eat_piece_aux(X, Y, Z) :- X > Y, F is X - Y, F == 8, Z is X - 4.
-eat_piece_aux(X, Y, Z) :- X < Y, F is Y - X, F == 8, Z is X + 4.
-eat_piece_aux(X, Y, Z) :- X > Y, F is X - Y, F == 10, Z is X - 5.
-eat_piece_aux(X, Y, Z) :- X < Y, F is Y - X, F == 10, Z is X + 5. */
-
 
 % -------------------------------------------------
 
 % -------------------- Check End ----------------------
 
-end_piece(A,X,_, W) :- amount(A,F,'x'), D is X + F, D < 3, W = 'o', format('\no wins by pieces!\n', []).
-end_piece(A,_,X, W) :- amount(A,F,'o'), D is X + F, D < 3, W = 'x', format('\nx wins by pieces!\n', []).
+end_piece(A,X,_, W) :- amount(A,F,'x'), D is X + F, D < 3, W = 'o'.
+end_piece(A,_,X, W) :- amount(A,F,'o'), D is X + F, D < 3, W = 'x'.
 
-end_3row(['o'|T],X, W) :- X < 2, what_piece(T,0,'o'), what_piece(T,1,'o'), W = 'o', format('\no wins by 3 in row!\n', []).
-end_3row(['o'|T],X, W) :- X < 2, what_piece(T,3,'o'), what_piece(T,7,'o'), W = 'o', format('\no wins by 3 in row!\n', []).
-end_3row(['o'|T],X, W) :- X < 2, what_piece(T,4,'o'), what_piece(T,9,'o'), W = 'o', format('\no wins by 3 in row!\n', []).
-end_3row(['x'|T],X, W) :- X < 2, what_piece(T,0,'x'), what_piece(T,1,'x'), W = 'x', format('\nx wins by 3 in row!\n', []).
-end_3row(['x'|T],X, W) :- X < 2, what_piece(T,3,'x'), what_piece(T,7,'x'), W = 'x', format('\nx wins by 3 in row!\n', []).
-end_3row(['x'|T],X, W) :- X < 2, what_piece(T,4,'x'), what_piece(T,9,'x'), W = 'x', format('\nx wins by 3 in row!\n', []).
-end_3row([_|T],3, _) :- F is 0, end_3row(T,F).
-end_3row([_|T], _) :- X < 3, F is X+1, end_3row(T,F).
+end_3row(['o'|T],X, W) :- X < 2, what_piece(T,0,'o'), what_piece(T,1,'o'), W = 'o'.
+end_3row(['o'|T],X, W) :- X < 2, what_piece(T,3,'o'), what_piece(T,7,'o'), W = 'o'.
+end_3row(['o'|T],X, W) :- X < 2, what_piece(T,4,'o'), what_piece(T,9,'o'), W = 'o'.
+end_3row(['o'|T],X, W) :- X > 1, what_piece(T,2,'o'), what_piece(T,5,'o'), W = 'o'.
+end_3row(['x'|T],X, W) :- X < 2, what_piece(T,0,'x'), what_piece(T,1,'x'), W = 'x'.
+end_3row(['x'|T],X, W) :- X < 2, what_piece(T,3,'x'), what_piece(T,7,'x'), W = 'x'.
+end_3row(['x'|T],X, W) :- X < 2, what_piece(T,4,'x'), what_piece(T,9,'x'), W = 'x'.
+end_3row(['x'|T],X, W) :- X > 1, what_piece(T,2,'x'), what_piece(T,5,'x'), W = 'x'.
+end_3row([_|T],3,V) :- end_3row(T,0,V).
+end_3row([_|T],X,V) :- X < 3, F is X+1, end_3row(T,F,V).
 
-end([ArenaState,_,A,B], Winner) :- end_piece(ArenaState,A,B, Winner).
-end([ArenaState|_], Winner) :- end_3row(ArenaState,0, Winner).
-end([ArenaState|_], Winner) :- reverse(ArenaState,Map), end_3row(Map,0, Winner).
-
+check_end([ArenaState,Winner,A,B], Winner, pieces) :- end_piece(ArenaState,A,B, Winner).
+check_end([ArenaState|_], Winner, row) :- end_3row(ArenaState,0, Winner).
+check_end([ArenaState|_], Winner, row) :- reverse(ArenaState, Map), end_3row(Map,0, Winner).
 
 % -----------------------------------------------------
 
 % ------------------- Valid Moves ------------------------------
-
 
 % Moves sao os varios moves que todas as Pieces to tipo Piece podem realizar. Assume-se tamanho da board (4x4)
 
@@ -251,14 +267,14 @@ move_option(Map, Piece, Moves) :- findall(Init-End, valid_move(Map, Piece, Init,
 
 valid_move(Map, Piece, X, Y) :- nth0(Y, Map, ' '), 
 								nth0(X, Map, Piece),
-								((Y =:= X-1, X =\= 4, X=\=8, X=\=12);
-								(Y =:= X+1, X=\=3, X=\=7, X=\=11);
+								((Y =:= X-1, (X mod 4) =\=0);
+								(Y =:= X+1, ((X-3) mod 4) =\=0);
 								(Y =:= X+4);
 								(Y =:= X-4);
-								(Y =:= X-3, X=\=3, X=\=7, X=\=11, X=\=15); % /^
-								(Y =:= X-5, X=\=4, X=\=8, X=\=12); % \^
-								(Y =:= X+5, X=\=3, X=\=7, X=\=11); % \v 
-								(Y =:= X+3, X=\=12, X=\=8, X=\=4, X=\=0)), % /v
+								(Y =:= X-3, ((X-3) mod 4) =\=0); % /^
+								(Y =:= X-5, (X mod 4) =\=0); % \^
+								(Y =:= X+5, ((X-3) mod 4) =\=0); % \v 
+								(Y =:= X+3, (X mod 4) =\=0)), % /v
 								Y >= 0, Y =< 16.
 
 
@@ -297,6 +313,11 @@ what_piece([_|T], X, D) :- X > 0, F is X-1, what_piece(T,F,D).
 add_lists([], X, X).
 add_lists([X | Y], Z, [X | W]) :- add_lists(Y, Z, W).
 
+%same_key(List, Key, Same_key_pairs)
+same_key([], _, []).
+same_key([S-_|T], Key, Same_key_pairs) :- S =\= Key, same_key(T,Key,Same_key_pairs).
+same_key([Key-V|T], Key, [Key-V|S]) :- same_key(T,Key,S).
+
 amount([],0,_).
 amount([H|T],D,H) :- amount(T,F,H), D is F+1.
 amount([H|T],D,X) :- X\=H, amount(T,D,X).
@@ -308,7 +329,7 @@ len([_ | T], N) :- len(T, S),
 ite(I, T, _):- I, !, T.
 ite(_, _, E):- E.
 
-not(X):- X, !, fail.
-not(_X).
+not(X):- X,!,fail.
+not(_).
 
 % --------------------------------------------------------------
