@@ -174,13 +174,13 @@ congratulate(Winner) :- repeat_char('X',24),nl,
 % ------------------- Arena building -----------------------
 
 arena_x([H],_) :- write(H),nl.
-arena_x([H|T],3) :- write(H),nl, arena_y, nl, arena_x(T,0).
-arena_x([H|T],A) :- B is A+1, write(H), write('--'), arena_x(T,B).
+arena_x([H|T],0) :- write(H),nl, arena_y, nl, arena_x(T,0).
+arena_x([H|T],A) :- B is A-1, write(H), write('--'), arena_x(T,B).
 
 arena_y :- write('|  |  |  |').
 
 % controi uma arena usando arena_x e arena_y (ex: arena(['x',' ','o', ' ', 'x','o',' ', 'o','o',' ',' ', ' ', 'x', ' ', ' ','o'], 1, 1) )
-arena(A,X,O) :- nl, remaining('x',X), write('    '), remaining('o',O), nl, arena_x(A,0), nl.
+arena(A,X,O) :- nl, remaining('x',X), write('    '), remaining('o',O), nl, arena_x(A,3), nl.
 
 remaining(_,0).
 remaining(X,O) :- write(X), F is O-1, remaining(X,F).
