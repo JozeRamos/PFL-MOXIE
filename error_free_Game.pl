@@ -2,36 +2,41 @@
 ?- use_module(library(random)).
 ?- use_module(library(system)).
 
-
+% Chama o menu
 play :- menu.
 
-% display_game(+GameState)
-display_game([Arena,_,Remaining_x, Remaining_o]) :- arena(Arena, Remaining_x, Remaining_o).
+% display_game(+GameState) controi uma arena gráfica usando arena_x e arena_y e o número de peças restantes de cada jogador com remaining
+display_game([Arena,_,Remaining_x, Remaining_o]) :- nl, remaining('x',Remaining_x), write('    '),
+													remaining('o',Remaining_o), nl,
+													arena_x(Arena,3), nl.
 
-% Player: human-human 1-AI(random) 2-AI
+% Player: human-human 1-AI(random) 2-AI Inteligente, inicializa o GameState com initial_state e começa o cyclo do jogo com o gam_cycle
 
 game(Type) :- initial_state(16, GameState),
 			  game_cycle(GameState, Type, _).
 
-change_piece('x', 'o').
-change_piece('o', 'x').
 
-%game_cycle(_, GameState, _) :- end(GameState,A,B).
+% game_cycle(_, GameState, _) :- end(GameState,A,B).
 game_cycle(GameState, F-S, NewGameState) :- game_turn(GameState, F, [Narena,Npiece|T]),
 											ite(game_over([Narena,Winner|T], Winner), (display_game([Narena,Winner|T]),congratulate(Winner)),
 											game_cycle([Narena,Npiece|T], S-F, NewGameState)).
 
+% game_over(+GameState,-Winner) verifica se à um vencedor, guarda qual é o Winner e diz como ganhou
 game_over([Arena, Winner|A], Winner) :- check_end([Arena,Winner|A], Winner,pieces) -> format('\n~s wins by 3 in row!\n', [Winner]);
 										check_end([Arena,Winner|A], Winner, row) -> format('\n~s wins by pieces!\n', [Winner]).
 
-game_turn([Arena, Winner|A], _, _):-	game_over([Arena,Winner|A], Winner), !, congratulate(Winner).				
+% game_turn(+GamaState, +Player, [Newarena, Newpiece|U]) verifica antes de um jogador fazer uma jogada se alguém
+% ganhou, se ninguém ganhar ele faz o turno do jogador.
+game_turn([Arena, Winner|A], _, _):-	game_over([Arena,Winner|A], Winner), congratulate(Winner).				
 game_turn([Arena, Piece|V], Player, [Newarena, Newpiece|U]) :- display_game([Arena,Piece|V]),
 													 choose_move([Arena,Piece|V], Player, Move),
 													 make_move([Arena, Piece|V], Move, [Aarena, Piece|A], Eat),
 												     change_piece(Piece, Otherpiece),
 													 ite(check_state([Aarena, Piece|A], Eat), ([Newarena, Newpiece|U] = [Aarena,Otherpiece|A]),
 													 (nl, write('Multiple Jump is Required!'),
-													 game_turn([Aarena,Piece|A], Player, [Newarena, Newpiece|U]))).											 
+													 game_turn([Aarena,Piece|A], Player, [Newarena, Newpiece|U]))).
+
+%check_state(+[ArenaState,Piece|_], ?Eat) verifica se pode comer mais alguma peça								 
 check_state(_, 0).
 check_state([ArenaState,Piece|_], 1) :- eat_option(ArenaState, Piece, []).
 
@@ -42,7 +47,7 @@ initial_state(Size, [[' '|T]|O]) :- Size > 0,
 								initial_state(S, [T|O]).
 
 
-% move(+GameState, +Move, +Piece, -NewGameState, ?Eat)
+% make_move(+GameState, +Move, -NewGameState, ?Eat) realiza a jogada do jogador.
 make_move([ArenaState, 'x', Remaining_x, O], Move, [NewArenaState,'x', X ,O], 0) :- integer(Move), piece(ArenaState, 'x', Move, NewArenaState),
 																										X is Remaining_x-1.
 make_move([ArenaState, 'o', X, Remaining_o], Move, [NewArenaState,'o', X, O], 0) :- integer(Move), piece(ArenaState, 'o', Move, NewArenaState),
@@ -50,7 +55,7 @@ make_move([ArenaState, 'o', X, Remaining_o], Move, [NewArenaState,'o', X, O], 0)
 make_move([ArenaState, Piece|T], X-Y, [NewArenaState, Piece|T], 0) :- valid_move(ArenaState, Piece, X, Y), move(ArenaState, X, Y, NewArenaState).
 make_move([ArenaState|T], X-Z, [NewArenaState|T], 1) :- eat(ArenaState, X, Z, NewArenaState).
 
-% valid_moves(+GameState, -ListOfMoves)
+% valid_moves(+GameState, -ListOfMoves) verifica todas as possiveis jogadas e guardas no ListOfMoves
 valid_moves([ArenaState, Piece, X, O], ListOfMoves) :- 	eat_option(ArenaState, Piece, []) ->
 													(piece_option(ArenaState, Piece_moves),
 													move_option(ArenaState, Piece, Move_moves),
@@ -60,8 +65,7 @@ valid_moves([ArenaState, Piece, X, O], ListOfMoves) :- 	eat_option(ArenaState, P
 													eat_option(ArenaState, Piece, ListOfMoves).
 											
 
-% !!!!!!!!!!!!!!!!!!!!!!! Adicionar informação (tipo "Eat is required" quando o Eat é forçoso e "Invalid Move" quando o move não é valido) !!!!!!!!!!!!
-% choose_move(+GameState, +Piece, +Player, -Move)
+% choose_move(+GameState, +Piece, +Player, -Move) pede input para as jogadas e verifica se a jogada é válida.
 choose_move([Arena,Piece|T], human, Move) :- repeat, valid_moves([Arena,Piece|T], Valid_moves),
 												write('Possible moves: '), write(Valid_moves), nl,
 												write(Piece), write(' turn: '), read(Move),
@@ -84,7 +88,7 @@ choose_move([Arena,Piece|T], 2, Move) :- 	valid_moves([Arena,Piece|T], Valid_Mov
 											write(Piece), write(' turn!'), nl,
 											sleep(1).
 
-% get_pairs_value_move(Moves,Pairs)
+% get_pairs_value_move(Moves,Pairs) associa o valor do estado resultante de um certo movimento a esse mesmo movimento
 get_pairs_value_move(_,[],[]).
 get_pairs_value_move(GameState, [M|Ms], [V-M|Ps]) :- make_move(GameState,M,NewGameState,_), findall(Val,value(NewGameState,2,Val),[V|_]),  get_pairs_value_move(GameState, Ms,Ps).
 
@@ -103,21 +107,26 @@ value([Arena,Piece, X,O], 2, Value) :- check_end([Arena,Piece, X,O], Piece,_) ->
 									Value is 1.
 
 % ----------------------- Menu e I/O ---------------------------
-
+% repeat_char(+char, +n) repete o char n vezes
 repeat_char(_, 0).
 repeat_char(C, 1) :- put_char(C).
 repeat_char(C, N) :- N > 0, put_char(C), F is N - 1, repeat_char(C, F).
 
+% text(+Text) escreve texto
 text([]).
 text([H|T]) :- put_code(H), text(T).
 
+% print_text(+Text, +Char, +Space) escreve texto para estar dentro de uma barreira.
 print_text(T, S, P) :- put_char(S), repeat_char(' ', P), text(T), repeat_char(' ', P), put_char(S).
 
+%print_menu_option(+Text, +Char, +Space) faz print do menu das options dentro de uma barreira.
 print_menu_option(T, S, P) :- len(T, N),
 						B is N+2*P,
 						put_char(S), repeat_char(' ',B), put_char(S), nl,
 						print_text(T, S, P), nl,
 						put_char(S), repeat_char(' ',B), put_char(S), nl.
+
+%print_winner(+Text, +Char, +Space) faz print da vitória dentro de uma barreira.
 print_winner(T, S, P) :- 
 						len(T, N),
 						B is N+2*P,
@@ -125,6 +134,7 @@ print_winner(T, S, P) :-
 						print_text(T, S, P), nl,
 						put_char(S), repeat_char(' ',B), put_char(S), nl.
 
+%menu faz print do menu principal.
 menu :- nl, print_text(" MOXIE!",' ', 4), nl,
 		repeat_char('X',17), nl,
 		print_menu_option("1 - START", 'X', 3),
@@ -133,6 +143,7 @@ menu :- nl, print_text(" MOXIE!",' ', 4), nl,
 		repeat_char('X',17), nl, nl,
 		text("Your choice: "), read(N), menu_choice(N).
 
+%menu_choice(+Choice) faz a escolha do user.
 menu_choice(1) :- play_menu, nl. 
 menu_choice(2) :- nl, print_text("Rules", '|', 5), nl,
 	write('MOVE - On each turn, each player must do one of the following actions:'),nl,
@@ -145,6 +156,7 @@ menu_choice(2) :- nl, print_text("Rules", '|', 5), nl,
 menu_choice(0).
 menu_choice(_) :- nl, menu.
 
+%menu faz print do menu principal com os modos de jogo.
 play_menu :- nl, print_text("Play Mode",' ', 10), nl,
 		repeat_char('X',31), nl,
 		print_menu_option("1 - Human/Human", 'X', 7),
@@ -156,14 +168,16 @@ play_menu :- nl, print_text("Play Mode",' ', 10), nl,
 		% print_menu_option("7 - Computer/Computer", 'X', 3),
 		print_menu_option("0 - Back to menu ", 'X', 6),
 		repeat_char('X',31), nl, nl,
-		text("Your choice: "), read(N), play_choice(N).
+		text("Your choice: "), read(N), play_choice(N), menu.
 
+%play_choice(+Choice) faz a escolha do user.
 play_choice(1) :- game(human-human). 
 play_choice(2) :- game(human-1). 
 play_choice(3) :- game(human-2). 
 play_choice(4) :- game(2-2). 
 play_choice(0) :- nl, menu.
 
+%congratulate(+Winner) Escreve quem foi o vencendor.
 congratulate(Winner) :- repeat_char('X',24),nl,
 						print_menu_option("Congratulations,",'X',3),
 						format('X       ~s, wins!       X\nX                      X\n', [Winner]),
@@ -173,35 +187,32 @@ congratulate(Winner) :- repeat_char('X',24),nl,
 
 % ------------------- Arena building -----------------------
 
+%arena_x(+Arena,+Collumn) desenha a parte horizontal da arena
 arena_x([H],_) :- write(H),nl.
-arena_x([H|T],0) :- write(H),nl, arena_y, nl, arena_x(T,0).
+arena_x([H|T],0) :- write(H),nl, arena_y, nl, arena_x(T,3).
 arena_x([H|T],A) :- B is A-1, write(H), write('--'), arena_x(T,B).
 
+%arena_y() desenha a parte horizontal da arena
 arena_y :- write('|  |  |  |').
 
-% controi uma arena usando arena_x e arena_y (ex: arena(['x',' ','o', ' ', 'x','o',' ', 'o','o',' ',' ', ' ', 'x', ' ', ' ','o'], 1, 1) )
-arena(A,X,O) :- nl, remaining('x',X), write('    '), remaining('o',O), nl, arena_x(A,3), nl.
-
-remaining(_,0).
-remaining(X,O) :- write(X), F is O-1, remaining(X,F).
 
 % ----------------------------------------------------------
 
 % -------------------- Moves ----------------------
 
-% place piece (dada um lista de chars que representa a arena)  piece(-Map, -Piece, -Index_of_piece, ?New_map)
+%piece(+Arena, +Piece, +Pos, -NewArena) Poem uma peça no campo (dada um lista de chars que representa a arena)
 piece([_|T], P, 0, [P|T]).
 piece([H|T], P, X, [H|A]) :- X > 0, Y is X-1, piece(T,P,Y,A).
 
-% removes piece (dada um lista de chars que representa a arena)  remove_piece(-Map, -Index_of_piece, ?New_map)
+%remove_piece(-Map, -Index_of_piece, -New_map) remove uma peça (dada um lista de chars que representa a arena)  
 remove_piece([_|T],0,[' '|T]).
 remove_piece([H|T],X,[H|A]) :- X > 0, F is X-1, remove_piece(T,F,A).
 
-% moves piece (dada um lista de chars que representa a arena)
+%move(+Arena,+Posição_inicial,+Posição_final, -New_map) mexe uma peça (dada um lista de chars que representa a arena)
 move(A,X,Y,B) :- what_piece(A, X, P), 
 				remove_piece(A,X,D), piece(D,P,Y,B).
 
-% piece eats another piece -> eat(-Map, -Posiçao inicial, -Posiçao final, ?New_map)
+% uma peça come outra peça -> eat(-Map, -Posiçao inicial, -Posiçao final, ?New_map)
 % (ex: eat(['x', 'o', ' ', ' ','o', 'o',' ', ' ',' ', 'o',' ', ' ',' ', ' ',' ', ' '],0,10,X), eat(X, 10, 8, X1), eat(X1,8,0,X2), eat(X2,0,2,X3).)
 eat(A, X, Z, B) :- calc_eat_move(X, Y, Z), % calculate food position
 					move(A, X, Z, D), remove_piece(D, Y, B).
@@ -232,16 +243,16 @@ calc_eat_move(X, Y, Z) :- (var(Z) ->
 % -------------------------------------------------
 
 % -------------------- Check End ----------------------
-
+% Verifica se ganhou por peças comidas.
 end_piece(A,X,_, W) :- amount(A,F,'x'), D is X + F, D < 3, W = 'o'.
 end_piece(A,_,X, W) :- amount(A,F,'o'), D is X + F, D < 3, W = 'x'.
-
+% Verifica se ganhou por 3 em linha.
 end_3row(['o'|T],X, W) :- X < 2, what_piece(T,0,'o'), what_piece(T,1,'o'), W = 'o'.
-end_3row(['o'|T],X, W) :- X < 2, what_piece(T,3,'o'), what_piece(T,7,'o'), W = 'o'.
+end_3row(['o'|T],_, W) :- what_piece(T,3,'o'), what_piece(T,7,'o'), W = 'o'.
 end_3row(['o'|T],X, W) :- X < 2, what_piece(T,4,'o'), what_piece(T,9,'o'), W = 'o'.
 end_3row(['o'|T],X, W) :- X > 1, what_piece(T,2,'o'), what_piece(T,5,'o'), W = 'o'.
 end_3row(['x'|T],X, W) :- X < 2, what_piece(T,0,'x'), what_piece(T,1,'x'), W = 'x'.
-end_3row(['x'|T],X, W) :- X < 2, what_piece(T,3,'x'), what_piece(T,7,'x'), W = 'x'.
+end_3row(['x'|T],_, W) :- what_piece(T,3,'x'), what_piece(T,7,'x'), W = 'x'.
 end_3row(['x'|T],X, W) :- X < 2, what_piece(T,4,'x'), what_piece(T,9,'x'), W = 'x'.
 end_3row(['x'|T],X, W) :- X > 1, what_piece(T,2,'x'), what_piece(T,5,'x'), W = 'x'.
 end_3row([_|T],3,V) :- end_3row(T,0,V).
@@ -249,7 +260,6 @@ end_3row([_|T],X,V) :- X < 3, F is X+1, end_3row(T,F,V).
 
 check_end([ArenaState,Winner,A,B], Winner, pieces) :- end_piece(ArenaState,A,B, Winner).
 check_end([ArenaState|_], Winner, row) :- end_3row(ArenaState,0, Winner).
-check_end([ArenaState|_], Winner, row) :- reverse(ArenaState, Map), end_3row(Map,0, Winner).
 
 % -----------------------------------------------------
 
@@ -307,9 +317,15 @@ valid_eats(A, Piece, Moves, X) :- X > 0,
 
 % ------------------- Utils ------------------------------
 
+%remaining(+Char,+N)escreve X N vezes
+remaining(_,0).
+remaining(X,O) :- write(X), F is O-1, remaining(X,F).
+
+%what_piece(+Arena,+Posição,+Peça) verifica se a Peça está na Posição da Arena
 what_piece([H|_],0,H).
 what_piece([_|T], X, D) :- X > 0, F is X-1, what_piece(T,F,D).
 
+%add_lists(+List1,+List,+List2)Adiciona duas listas
 add_lists([], X, X).
 add_lists([X | Y], Z, [X | W]) :- add_lists(Y, Z, W).
 
@@ -318,18 +334,21 @@ same_key([], _, []).
 same_key([S-_|T], Key, Same_key_pairs) :- S =\= Key, same_key(T,Key,Same_key_pairs).
 same_key([Key-V|T], Key, [Key-V|S]) :- same_key(T,Key,S).
 
+%amount(+Arena,+Amount,+Peça) quantidade de Peça que existe na Arena
 amount([],0,_).
 amount([H|T],D,H) :- amount(T,F,H), D is F+1.
 amount([H|T],D,X) :- X\=H, amount(T,D,X).
 
+%tamanho de uma lista
 len([],0).
 len([_ | T], N) :- len(T, S),
 				N is S+1.
 
+% ite -> if then else
 ite(I, T, _):- I, !, T.
 ite(_, _, E):- E.
 
-not(X):- X,!,fail.
-not(_).
-
+% Muda a peça
+change_piece('x', 'o').
+change_piece('o', 'x').
 % --------------------------------------------------------------
